@@ -7,6 +7,7 @@
 #include "TEWEditWidget.h"
 #include "TEWButtonWidget.h"
 #include "TEWControlWidget.h"
+#include "TNTIconWidget.h"
 #include <string>
 #include <vector>
 
@@ -27,6 +28,9 @@ namespace WidgetKit {
     };
     EditBox CreateEditBox(const ModHost* Host, int16_t X, int16_t Y, uint16_t Width, uint16_t Height);
 
+    TNTIconWidget* CreateItemIcon(const ModHost* Host, int16_t X, int16_t Y, int16_t Size, int16_t IconId);
+    void SetItemIcon(TNTIconWidget* Icon, int16_t IconId);
+
     class Dropdown {
     public:
         using PickFn = void(__cdecl*)(void* Argument, int Index);
@@ -38,6 +42,7 @@ namespace WidgetKit {
             int VisibleRows = 10;
             const wchar_t* Placeholder = L"";
             bool Filterable = true;
+            bool ShowIcons = false;
             PickFn OnPick = nullptr;
             void* Argument = nullptr;
         };
@@ -45,7 +50,7 @@ namespace WidgetKit {
         static Dropdown* Create(const ModHost* Host, const Desc& Desc);
 
         TLBSWidget* Widget() const { return Root; }
-        void SetItems(std::vector<std::wstring> NewItems);
+        void SetItems(std::vector<std::wstring> NewItems, std::vector<int16_t> NewIcons = {});
         void SetSelected(int Index);
         int Selected() const { return SelectedIndex; }
         bool IsOpen() const { return Open; }
@@ -65,6 +70,7 @@ namespace WidgetKit {
 
         void Refilter();
         void LayOut();
+        int16_t IconOf(int Index) const;
         void ScrollBy(int Rows);
         bool IsCursorOverList(int32_t MouseX, int32_t MouseY) const;
 
@@ -73,13 +79,16 @@ namespace WidgetKit {
         TEWButtonWidget* Header = nullptr;
         TEWGraphicButtonWidget* Arrow = nullptr;
         EditBox Filter{};
+        TNTIconWidget* HeaderIcon = nullptr;
         std::vector<TEWButtonWidget*> Rows;
+        std::vector<TNTIconWidget*> RowIcons;
         std::vector<RowBinding*> Bindings;
         TEWGraphicButtonWidget* PrevPage = nullptr;
         TEWGraphicButtonWidget* NextPage = nullptr;
         TEWLabel* PageLabel = nullptr;
 
         std::vector<std::wstring> Items;
+        std::vector<int16_t> Icons;
         std::vector<int> Matches;
         std::wstring FilterText;
         int SelectedIndex = -1;

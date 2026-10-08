@@ -270,6 +270,35 @@ namespace WidgetKit {
         return {Frame, Edit};
     }
 
+    TNTIconWidget* CreateItemIcon(const ModHost* Host, const int16_t X, const int16_t Y, const int16_t Size,
+                                  const int16_t IconId) {
+        TNTIconWidget* Icon = Widget::Create<TNTIconWidget>(Host);
+        if (!Icon) return nullptr;
+        auto* Raw = reinterpret_cast<uint8_t*>(Icon);
+        Icon->keepTransparency = false;
+        Icon->resized = true;
+        *reinterpret_cast<float*>(Raw + 0x90) = 1.0f;
+        Icon->imageIf = 4;
+        Raw[0xAB] = 1;
+        Raw[0xAC] = 1;
+        Raw[0xAE] = 10;
+        Raw[0xD3] = 1;
+        Icon->isInteractable = false;
+        Icon->color = Color(254, 255, 255, 255);
+        delete Icon->image;
+        Icon->image = reinterpret_cast<IconProperties*>(new uint8_t[0x40]{});
+        Icon->rect = {X, Y, static_cast<int16_t>(X + Size), static_cast<int16_t>(Y + Size)};
+        SetItemIcon(Icon, IconId);
+        return Icon;
+    }
+
+    void SetItemIcon(TNTIconWidget* Icon, const int16_t IconId) {
+        if (!Icon || !Icon->image) return;
+        const bool Visible = IconId >= 0;
+        if (Visible && Icon->image->imageID != IconId) Icon->image->imageID = IconId;
+        if (Icon->isVisible != Visible) Icon->isVisible = Visible;
+    }
+
     TLBSWidget* CreateLabeledCheckbox(const ModHost* Host, const int16_t X, const int16_t Y, const wchar_t* Text,
                                       const int16_t TextWidth, bool* Value,
                                       const ClickFn OnChange, void* Argument) {

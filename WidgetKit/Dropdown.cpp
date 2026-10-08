@@ -17,6 +17,10 @@ namespace {
     constexpr int16_t PagerArrowWidth = 12;
     constexpr int16_t PagerHeight = 19;
     constexpr int WheelRows = 3;
+    constexpr int16_t IconSize = 15;
+    constexpr int16_t IconLeft = 3;
+    constexpr int16_t PlainTextX = 3;
+    constexpr int16_t IconTextX = IconLeft + IconSize + 3;
 
     void SetVisible(TLBSWidget* Widget, const bool Visible) {
         if (Widget && Widget->isVisible != Visible) Widget->isVisible = Visible;
@@ -69,6 +73,10 @@ namespace WidgetKit {
         Self->Header->SetWidth(Width);
         SetOnClick(Self->Header, &OnToggle, Self);
         AddChild(Self->Root, Self->Header);
+        if (Desc.ShowIcons) {
+            Self->HeaderIcon = CreateItemIcon(Host, IconLeft, 1, IconSize, -1);
+            if (Self->HeaderIcon) AddChild(Self->Header, Self->HeaderIcon);
+        }
 
         Place(Self->Arrow, Width, 0, DropdownArrowWidth, 18);
         SetOnClick(Self->Arrow, &OnToggle, Self);
@@ -89,7 +97,10 @@ namespace WidgetKit {
             auto* Binding = new RowBinding{Self, i};
             SetOnClick(Row, &OnRow, Binding);
             AddChild(Self->Root, Row);
+            TNTIconWidget* Icon = Desc.ShowIcons ? CreateItemIcon(Host, IconLeft, 1, IconSize, -1) : nullptr;
+            if (Icon) AddChild(Row, Icon);
             Self->Rows.push_back(Row);
+            Self->RowIcons.push_back(Icon);
             Self->Bindings.push_back(Binding);
         }
 
@@ -115,8 +126,9 @@ namespace WidgetKit {
         return Self;
     }
 
-    void Dropdown::SetItems(std::vector<std::wstring> NewItems) {
+    void Dropdown::SetItems(std::vector<std::wstring> NewItems, std::vector<int16_t> NewIcons) {
         Items = std::move(NewItems);
+        Icons = std::move(NewIcons);
         SetSelected(SelectedIndex < static_cast<int>(Items.size()) ? SelectedIndex : -1);
         Refilter();
     }
@@ -124,6 +136,16 @@ namespace WidgetKit {
     void Dropdown::SetSelected(const int Index) {
         SelectedIndex = Index >= 0 && Index < static_cast<int>(Items.size()) ? Index : -1;
         Header->SetCaption(SelectedIndex >= 0 ? Items[SelectedIndex].c_str() : Settings.Placeholder);
+        if (HeaderIcon) {
+            const int16_t Icon = IconOf(SelectedIndex);
+            SetItemIcon(HeaderIcon, Icon);
+            Header->textX = Icon >= 0 ? IconTextX : PlainTextX;
+            Header->textWidth = static_cast<int16_t>(Settings.Width - 2 - (Header->textX - PlainTextX));
+        }
+    }
+
+    int16_t Dropdown::IconOf(const int Index) const {
+        return Index >= 0 && Index < static_cast<int>(Icons.size()) ? Icons[Index] : static_cast<int16_t>(-1);
     }
 
     void Dropdown::SetOpen(const bool NowOpen) {
@@ -196,6 +218,12 @@ namespace WidgetKit {
             Rows[i]->rect.top = static_cast<int16_t>(Y + Shown * DropdownRowHeight);
             Rows[i]->SetWidth(Width);
             Rows[i]->SetCaption(Items[Matches[Match]].c_str());
+            if (RowIcons[i]) {
+                const int16_t Icon = IconOf(Matches[Match]);
+                SetItemIcon(RowIcons[i], Icon);
+                Rows[i]->textX = Icon >= 0 ? IconTextX : PlainTextX;
+                Rows[i]->textWidth = static_cast<int16_t>(Width - 2 - (Rows[i]->textX - PlainTextX));
+            }
             Shown++;
         }
         Y += static_cast<int16_t>(Shown * DropdownRowHeight);

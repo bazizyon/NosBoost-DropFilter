@@ -130,4 +130,12 @@ namespace WidgetKit {
 
     TEWControlWidget* CreateImage(const ModHost* Host, const UiImage& Image, int16_t X, int16_t Y,
                                   AtlasFrame Frame = {0, 0, 0, 0});
+
+    class WindowRaiser {
+    public:
+        void Tick(TLBSWidget* Window, const TickContext& Context);
+
+    private:
+        bool WasDown = false;
+    };
 }

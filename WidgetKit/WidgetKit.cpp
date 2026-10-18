@@ -388,7 +388,7 @@ namespace WidgetKit {
             char Exe[MAX_PATH]{};
             GetModuleFileNameA(nullptr, Exe, MAX_PATH);
             std::string Folder(Exe);
-            Full = Folder.substr(0, Folder.find_last_of("\/") + 1) + Full;
+            Full = Folder.substr(0, Folder.find_last_of("\\/") + 1) + Full;
         }
         HANDLE File = CreateFileA(Full.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, nullptr);
         if (File == INVALID_HANDLE_VALUE) return {};
@@ -415,5 +415,49 @@ namespace WidgetKit {
         Sprite->imageData.atlasFrames = new AtlasFrame[1]{Frame};
         Sprite->rect = {X, Y, static_cast<int16_t>(X + Frame.width), static_cast<int16_t>(Y + Frame.height)};
         return Sprite;
+    }
+
+    namespace {
+        bool NothingAbove(const TLBSWidget* Widget, const int32_t X, const int32_t Y) {
+            for (const TLBSWidget* At = Widget; At->parent; At = At->parent) {
+                const TLBSWidget* Parent = At->parent;
+                const TLBSWidgetList* Siblings = Parent->childrenList;
+                if (!Siblings) continue;
+                int32_t Left = 0, Top = 0;
+                for (const TLBSWidget* P = Parent; P; P = P->parent) {
+                    Left += P->rect.left;
+                    Top += P->rect.top;
+                }
+                const int32_t Index = Siblings->index_of(const_cast<TLBSWidget*>(At));
+                if (Index < 0) continue;
+                for (uint32_t i = static_cast<uint32_t>(Index) + 1; i < Siblings->count; i++) {
+                    const TLBSWidget* Other = Siblings->list[i];
+                    if (!Other || !Other->isVisible || !Other->isInteractable) continue;
+                    if (X >= Left + Other->rect.left && X < Left + Other->rect.right && Y >= Top + Other->rect.top
+                        && Y < Top + Other->rect.bottom) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+    }
+
+    void WindowRaiser::Tick(TLBSWidget* Window, const TickContext& Context) {
+        const bool Down = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) || (GetAsyncKeyState(VK_RBUTTON) & 0x8000);
+        const bool Pressed = Down && !WasDown;
+        WasDown = Down;
+        if (!Pressed || !Window || !Window->isVisible || !Window->isInteractable || !Window->parent) return;
+        const TLBSWidgetList* Siblings = Window->parent->childrenList;
+        if (!Siblings || !Siblings->count || Siblings->list[Siblings->count - 1] == Window) return;
+        int32_t Left = 0, Top = 0;
+        for (const TLBSWidget* At = Window; At; At = At->parent) {
+            Left += At->rect.left;
+            Top += At->rect.top;
+        }
+        const int32_t Right = Left + Window->rect.right - Window->rect.left;
+        const int32_t Bottom = Top + Window->rect.bottom - Window->rect.top;
+        if (Context.mouseX < Left || Context.mouseX >= Right || Context.mouseY < Top || Context.mouseY >= Bottom) return;
+        if (NothingAbove(Window, Context.mouseX, Context.mouseY)) Window->BubbleUp();
     }
 }

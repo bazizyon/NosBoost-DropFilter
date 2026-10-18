@@ -593,6 +593,8 @@ extern "C" {
     __declspec(dllexport) void ModEarlyTick(const TLBSWidget* RootWidget, const TickContext tickContext) {
         TLBSWidget* Root = const_cast<TLBSWidget*>(RootWidget);
         if (!CachedHost || !Root || !Root->childrenList) return;
+        static WidgetKit::WindowRaiser Raiser;
+        Raiser.Tick(Window, tickContext);
         if (!tickContext.isPlayerLoaded) {
             Show(Window, false);
             return;

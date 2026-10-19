@@ -459,6 +459,7 @@ namespace {
         const WidgetKit::WindowDesc Desc{WidgetKit::WindowStyle::Plain, 220, 120, WindowWidth, WindowHeight,
                                          L"Drop Filter", true};
         Window = WidgetKit::CreateGameWindow(CachedHost, Desc);
+        WidgetKit::CloseOnEscape(CachedHost, Window);
         if (!Window) return;
         Window->isVisible = false;
         Window->isRestrictedToScreen = true;

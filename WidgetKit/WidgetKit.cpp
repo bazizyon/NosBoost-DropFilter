@@ -1,6 +1,7 @@
 #include "WidgetKit.h"
 #include <cstddef>
 #include <cstring>
+#include <unordered_map>
 
 #include "TEWLabel.h"
 #include "TEWGraphicButtonWidget.h"
@@ -26,6 +27,30 @@ namespace {
             mov byte ptr [eax + 0x18], 0
             ret
         }
+    }
+
+    std::unordered_map<const TLBSWidget*, TEWGraphicButtonWidget*>& CloseButtons() {
+        static std::unordered_map<const TLBSWidget*, TEWGraphicButtonWidget*> Buttons;
+        return Buttons;
+    }
+
+    void PressButton(const TEWGraphicButtonWidget* Button) {
+        const uint32_t Function = Button->callbackFunction;
+        const uint32_t Argument = Button->callbackArgument;
+        if (!Function) return;
+        __asm {
+            pushad
+            mov eax, Argument
+            call Function
+            popad
+        }
+    }
+
+    void __cdecl CloseByEscape(void* Argument) {
+        auto* Window = static_cast<TLBSWidget*>(Argument);
+        const auto Found = CloseButtons().find(Window);
+        if (Found != CloseButtons().end() && Found->second) PressButton(Found->second);
+        else Window->isVisible = false;
     }
 
     struct CheckboxBinding {
@@ -174,6 +199,7 @@ namespace {
         Button->callbackFunction = reinterpret_cast<uint32_t>(&HideWindow);
         Button->callbackArgument = reinterpret_cast<uint32_t>(Window);
         AddChild(Window, Button);
+        CloseButtons()[Window] = Button;
     }
 }
 
@@ -363,6 +389,10 @@ namespace WidgetKit {
             AddCloseButton(Host, Window, Desc.Width);
         }
         return Window;
+    }
+
+    void CloseOnEscape(const ModHost* Host, TEWCustomPanelWidget* Window) {
+        if (Host && Host->SetEscapeClose && Window) Host->SetEscapeClose(Window, &CloseByEscape, Window);
     }
 
     namespace {

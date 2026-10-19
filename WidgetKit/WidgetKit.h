@@ -116,6 +116,7 @@ namespace WidgetKit {
     };
 
     TEWCustomPanelWidget* CreateGameWindow(const ModHost* Host, const WindowDesc& Desc);
+    void CloseOnEscape(const ModHost* Host, TEWCustomPanelWidget* Window);
 
     struct UiImage {
         int32_t Id = 0;

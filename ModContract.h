@@ -26,6 +26,8 @@ struct TickContext {
     int32_t playerX;  // -1 when no character is loaded
     int32_t playerY;
     int32_t mapId;    // -1 until the first map change after NosBoost loads
+    int32_t mapWidth; // map grid size in cells, -1 when no map is loaded
+    int32_t mapHeight;
 };
 
 namespace Packet {
@@ -104,6 +106,21 @@ struct ModHost {
 
     // PNG bytes into the game's UI texture cache. Returns the image id (imageData.imageName), 0 if it fails.
     int32_t(* LoadUiImage)(const void* PngData, uint32_t Size, uint16_t* Width, uint16_t* Height);
+
+    // Sees every packet in both directions, read only. One per mod, nullptr removes it.
+    void(* SetRawPacketObserver)(void(* Observer)(const char* Packet, bool IsSend));
+
+    // Draws a PNG instead of a game texture. Cache 0 is map and characters, 1 effects, 2 UI.
+    bool(* ReplaceGameTexture)(uint32_t Cache, int32_t TextureId, const void* PngData, uint32_t Size);
+    // Puts the game's own texture back. Also happens when the mod unloads.
+    void(* RestoreGameTexture)(uint32_t Cache, int32_t TextureId);
+
+    // Like LoadUiImage but for any texture cache. Returns the new texture id, 0 if it fails.
+    int32_t(* LoadGameImage)(uint32_t Cache, const void* PngData, uint32_t Size, uint16_t* Width, uint16_t* Height);
+    // Adds an effect in NSeffData format, its first u32 is the id. The game can spawn it like its own.
+    bool(* RegisterEffect)(const void* Definition, uint32_t Size);
+
+    void(* SetEscapeClose)(TLBSWidget* Window, void(* Close)(void* Argument), void* Argument);
 };
 
 namespace Packet {

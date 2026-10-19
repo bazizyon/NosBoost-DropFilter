@@ -14,6 +14,7 @@
 #include "InPacket.h"
 #include "OutPacket.h"
 #include "GetPacket.h"
+#include "ThrowPacket.h"
 #include "CMapPacket.h"
 #include "FilterConfig.h"
 #include "ItemCatalog.h"
@@ -73,6 +74,7 @@ namespace {
     bool FilterEnabled = true;
     FilterConfig::Mode FilterMode = FilterConfig::Mode::Blacklist;
     std::unordered_set<int> FilterVnums;
+    std::unordered_set<int> MapObjects;
     std::unordered_set<long> HiddenDrops;
     std::atomic<int> HiddenCount{0};
 
@@ -104,6 +106,7 @@ namespace {
     int ListScroll = 0;
     bool PendingToggle = false;
     bool CatalogReady = false;
+    std::atomic<bool> CatalogTried = false;
     std::vector<int> PickerVnums;
     std::vector<std::wstring> ConfigNames;
 
@@ -119,12 +122,19 @@ namespace {
         std::lock_guard Lock(FilterLock);
         if (!FilterEnabled) return false;
         const bool Listed = FilterVnums.contains(Vnum);
+        if (!Listed && MapObjects.contains(Vnum)) return false;
         const bool Hide = FilterMode == FilterConfig::Mode::Blacklist ? Listed : !Listed;
         if (Hide) HiddenDrops.insert(DropId);
         return Hide;
     }
 
     bool OnDrop(const Packet::DropPacket& Packet) {
+        if (!HideAndRemember(Packet.itemVNum, Packet.dropID)) return true;
+        ++HiddenCount;
+        return false;
+    }
+
+    bool OnThrow(const Packet::ThrowPacket& Packet) {
         if (!HideAndRemember(Packet.itemVNum, Packet.dropID)) return true;
         ++HiddenCount;
         return false;
@@ -152,6 +162,7 @@ namespace {
         std::lock_guard Lock(FilterLock);
         HiddenDrops.clear();
         HiddenCount = 0;
+        CatalogTried = false;
         return true;
     }
 
@@ -313,9 +324,20 @@ namespace {
         ConfigPicker->SetSelected(Found == ConfigNames.end() ? -1 : static_cast<int>(Found - ConfigNames.begin()));
     }
 
+    void LoadCatalog() {
+        CatalogTried = true;
+        CatalogReady = ItemCatalog::Load();
+        if (!CatalogReady) return;
+        std::lock_guard Lock(FilterLock);
+        MapObjects.clear();
+        for (const auto& Item : ItemCatalog::All()) {
+            if (Item.MapObject) MapObjects.insert(Item.Vnum);
+        }
+    }
+
     void FillItemPicker() {
         if (!ItemPicker) return;
-        CatalogReady = ItemCatalog::Load();
+        LoadCatalog();
         std::vector<std::wstring> Names;
         std::vector<int16_t> Icons;
         PickerVnums.clear();
@@ -577,6 +599,7 @@ extern "C" {
         Settings = FilterConfig::LoadState();
         RebuildFilter();
         Packet::SubscribePacket(Host, &OnDrop);
+        Packet::SubscribePacket(Host, &OnThrow);
         Packet::SubscribePacket(Host, &OnIn);
         Packet::SubscribePacket(Host, &OnOut);
         Packet::SubscribePacket(Host, &OnPickUp);
@@ -609,6 +632,7 @@ extern "C" {
             CachedHost->ReportStatus(ModHealthLevel::Broken, "Couldn't create the filter window.");
             return;
         }
+        if (!CatalogReady && !CatalogTried) LoadCatalog();
         if (CatalogReady) {
             CachedHost->ReportStatus(ModHealthLevel::Ok, "");
         } else {

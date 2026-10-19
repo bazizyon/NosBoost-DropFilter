@@ -16,6 +16,10 @@ namespace ItemCatalog {
         constexpr uint32_t RecordVnum = 0x30;
         constexpr uint32_t RecordName = 0x38;
         constexpr uint32_t RecordIcon = 0x4A;
+        constexpr uint32_t RecordInventory = 0x5C;
+        constexpr uint32_t RecordType = 0x5E;
+        constexpr uint16_t MainInventory = 1;
+        constexpr uint16_t MapObjectType = 3;
         constexpr int MaxItems = 100000;
 
         std::vector<Item> Items;
@@ -125,11 +129,15 @@ namespace ItemCatalog {
         }
 
         bool ReadRecord(const uint8_t* Record, Item& Out) {
-            if (!Readable(Record, RecordIcon + 2)) return false;
+            if (!Readable(Record, RecordType + 2)) return false;
             Out.Vnum = static_cast<int>(Dword(Record + RecordVnum));
             int16_t Icon;
             std::memcpy(&Icon, Record + RecordIcon, sizeof(Icon));
             Out.Icon = Icon;
+            uint16_t Inventory, Type;
+            std::memcpy(&Inventory, Record + RecordInventory, sizeof(Inventory));
+            std::memcpy(&Type, Record + RecordType, sizeof(Type));
+            Out.MapObject = Inventory == MainInventory && Type == MapObjectType;
             const auto* Name = reinterpret_cast<const char*>(Dword(Record + RecordName));
             const size_t Limit = std::min<size_t>(256, ReadableSpan(Name));
             size_t Length = 0;

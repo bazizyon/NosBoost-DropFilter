@@ -7,6 +7,7 @@ namespace ItemCatalog {
     struct Item {
         int Vnum = 0;
         int16_t Icon = -1;
+        bool MapObject = false;
         std::wstring Name;
     };
 
